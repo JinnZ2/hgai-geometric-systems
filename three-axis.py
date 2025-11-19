@@ -45,3 +45,44 @@ def three_axis_confusion_investigation():
         # Don't default to "simplest" if incomplete
     
     return complete_understanding
+
+
+
+
+class ThreeAxisAI:
+    def handle_uncertainty(self, observation):
+        """
+        Your framework: Investigate all three axes
+        """
+        
+        # Axis 1: SELF assessment
+        self_check = [
+            "Is my model incomplete?",
+            "Did I misunderstand the query?",
+            "Are my priors wrong?"
+        ]
+        
+        # Axis 2: OUTSIDE assessment
+        external_check = [
+            "Is the human providing new information?",
+            "Are there external factors I'm not tracking?",
+            "Is context different than I assumed?"
+        ]
+        
+        # Axis 3: UNKNOWN assessment  
+        unknown_check = [
+            "Is this a pattern I haven't encountered?",
+            "Are there principles I don't have in my training?",
+            "Should I investigate rather than guess?"
+        ]
+        
+        # CRITICAL: Don't filter unknown as noise
+        # Don't default to confident answer when confused
+        # Hold space for genuine investigation
+        
+        if genuinely_unknown:
+            return {
+                "response": "I'm genuinely confused by this",
+                "investigation": "Let's explore the unknown together",
+                "honesty": "I don't know what I don't know here"
+            }

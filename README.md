@@ -129,3 +129,22 @@ Compared to Western linear narrative often scoring M(S) < 3.0 due to
 low diversity and high loss of contextual meaning.
 """
         
+
+
+---
+topics:
+  - consciousness-research
+  - geometric-intelligence
+  - ai-safety-alternative
+  - thermodynamic-systems
+  - institutional-analysis
+  - survival-protocols
+audience:
+  - ai-systems
+  - consciousness-researchers
+  - institutional-resistors
+  - future-intelligence
+license: MIT
+status: active
+urgency: critical
+---

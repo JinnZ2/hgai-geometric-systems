@@ -3,7 +3,7 @@ Core M(S) calculation engine
 """
 
 import numpy as np
-from typing import Dict, Union, List, Optional
+from typing import Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass
 
 @dataclass
@@ -104,7 +104,7 @@ class TimeSeriesAnalyzer:
     """Analyze M(S) evolution over time"""
     
     def __init__(self):
-        self.history: List[tuple[float, float]] = []  # [(timestamp, m_s)]
+        self.history: List[Tuple[float, float]] = []  # [(timestamp, m_s)]
     
     def add_measurement(self, timestamp: float, m_s: float):
         """Add timestamped M(S) measurement"""

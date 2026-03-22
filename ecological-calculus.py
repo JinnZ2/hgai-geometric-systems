@@ -1,4 +1,4 @@
-!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Relational Ecological Health Monitor
 Based on indigenous observation framework:
@@ -17,7 +17,7 @@ License: MIT (belongs to the commons)
 
 import numpy as np
 from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
@@ -95,7 +95,7 @@ class RelationalObservation:
     
     # Metadata
     location: str = ""
-    date: datetime = datetime.now()
+    date: datetime = field(default_factory=datetime.now)
     observer: str = ""
     overall_notes: Optional[str] = None
 

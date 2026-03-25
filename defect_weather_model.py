@@ -249,7 +249,139 @@ class AtmosphericDefectDetector:
                     intensity=float(-np.mean(lap_p[cluster])),
                 ))
 
+        # 4. PRECURSOR DETECTION — the missing piece
+        # Look for defects FORMING before they cross threshold.
+        # Uses three sub-threshold signals:
+        #   a) Curvature anomaly: high |Laplacian| relative to gradient
+        #   b) Local entropy: regions where spatial disorder is building
+        #   c) Flux coupling: P*T gradient correlation (from flux_sensor)
+        precursors = self._detect_precursors(
+            pressure_field, temp_field, grad_p, lap_p,
+        )
+        defects.extend(precursors)
+
         return defects
+
+    def _detect_precursors(
+        self,
+        pressure: np.ndarray,
+        temp: Optional[np.ndarray],
+        grad_p: np.ndarray,
+        lap_p: np.ndarray,
+    ) -> List[WeatherDefect]:
+        """Detect defects-in-formation (sub-threshold precursors).
+
+        The blizzard problem: the signal is there but below detection
+        threshold. Three precursor signals catch it:
+
+        1. Curvature hotspots: |Laplacian| is high relative to local
+           gradient — pressure is curving but hasn't spiked yet.
+        2. Entropy buildup: local spatial variance exceeds what the
+           smooth field predicts — disorder is accumulating.
+        3. P-T flux coupling: if temperature and pressure gradients
+           align and amplify, a phase transition is forming.
+
+        Parameters
+        ----------
+        pressure : np.ndarray
+            Pressure field.
+        temp : np.ndarray or None
+            Temperature field.
+        grad_p : np.ndarray
+            Pressure gradient magnitude.
+        lap_p : np.ndarray
+            Pressure Laplacian.
+
+        Returns
+        -------
+        list of WeatherDefect
+            Precursor defects with lower confidence.
+        """
+        N = pressure.shape[0]
+        precursors = []
+
+        # --- Signal 1: Curvature anomaly ---
+        # High curvature + low gradient = pressure is "bending"
+        # but hasn't expressed yet (the hidden wave)
+        curvature_ratio = np.abs(lap_p) / (grad_p + 1e-8)
+        curvature_threshold = np.percentile(curvature_ratio, 90)
+
+        hotspots = curvature_ratio > curvature_threshold
+        if np.any(hotspots):
+            labeled = _simple_label(hotspots)
+            for label_id in range(1, min(int(np.max(labeled)) + 1, 8)):
+                cluster = labeled == label_id
+                if np.sum(cluster) < 3:
+                    continue
+                ys, xs = np.where(cluster)
+                cy = np.mean(ys) / N * 2 - 1
+                cx = np.mean(xs) / N * 2 - 1
+                intensity = float(np.mean(curvature_ratio[cluster]))
+                precursors.append(WeatherDefect(
+                    x=float(cx),
+                    y=float(cy),
+                    charge=1 if np.mean(lap_p[cluster]) < 0 else -1,
+                    feature_type="precursor_curvature",
+                    intensity=intensity,
+                ))
+
+        # --- Signal 2: Local entropy buildup ---
+        # Sliding window variance — where is disorder accumulating?
+        window = 5
+        half = window // 2
+        local_var = np.zeros_like(pressure)
+        for i in range(half, N - half):
+            for j in range(half, N - half):
+                patch = pressure[i-half:i+half+1, j-half:j+half+1]
+                local_var[i, j] = np.var(patch)
+
+        entropy_threshold = np.percentile(local_var[half:-half, half:-half], 85)
+        entropy_hotspots = local_var > entropy_threshold
+
+        if np.any(entropy_hotspots):
+            labeled = _simple_label(entropy_hotspots)
+            for label_id in range(1, min(int(np.max(labeled)) + 1, 5)):
+                cluster = labeled == label_id
+                if np.sum(cluster) < 4:
+                    continue
+                ys, xs = np.where(cluster)
+                cy = np.mean(ys) / N * 2 - 1
+                cx = np.mean(xs) / N * 2 - 1
+                precursors.append(WeatherDefect(
+                    x=float(cx),
+                    y=float(cy),
+                    charge=1,
+                    feature_type="precursor_entropy",
+                    intensity=float(np.mean(local_var[cluster])),
+                ))
+
+        # --- Signal 3: P-T flux coupling ---
+        # If temperature field available, check for coupled gradients
+        # (the flux_sensor insight: |dP * dT| = phase transition risk)
+        if temp is not None:
+            grad_t = gradient_magnitude(temp)
+            flux_coupling = grad_p * grad_t
+            flux_threshold = np.percentile(flux_coupling, 90)
+
+            flux_hot = flux_coupling > flux_threshold
+            if np.any(flux_hot):
+                labeled = _simple_label(flux_hot)
+                for label_id in range(1, min(int(np.max(labeled)) + 1, 5)):
+                    cluster = labeled == label_id
+                    if np.sum(cluster) < 3:
+                        continue
+                    ys, xs = np.where(cluster)
+                    cy = np.mean(ys) / N * 2 - 1
+                    cx = np.mean(xs) / N * 2 - 1
+                    precursors.append(WeatherDefect(
+                        x=float(cx),
+                        y=float(cy),
+                        charge=1,
+                        feature_type="precursor_flux",
+                        intensity=float(np.mean(flux_coupling[cluster])),
+                    ))
+
+        return precursors
 
 
 def _simple_label(mask: np.ndarray) -> np.ndarray:
@@ -434,8 +566,12 @@ class DefectWeatherModel:
             Side-by-side results.
         """
         N = self.N
-        rng = np.random.RandomState(self.seed + 1)
-        inp = rng.randn(N, N)
+
+        # KEY FIX: input signal is the actual atmospheric state,
+        # not random noise. Defects modulate real structure, just
+        # like in the actual atmosphere.
+        inp = initial_pressure - np.mean(initial_pressure)
+        inp = inp / (np.max(np.abs(inp)) + 1e-8)
 
         # Detect atmospheric defects
         weather_defects = self.detector.detect(initial_pressure, initial_temp)

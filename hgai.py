@@ -19,14 +19,24 @@ Usage:
     report = engine.analyze("text here...")
     print(report)
 
-Modules connected:
-    - M(S) Calculator: System coherence scoring
-    - Resilience Scanner: Institutional friction detection
-    - Narrative Monitor: 64D geometric text encoding
-    - Ecological Monitor: Relational health assessment
-    - Three-Axis Protocol: Confusion investigation
-    - Entropy Sensor: System stress calibration (when data available)
-    - Flux Sensor: Phase transition detection (when data available)
+Modules imported and executed by this engine:
+    - framework.core.m_s_calculator: System coherence scoring
+    - resilience.detectors: Institutional friction detection
+    - resilience.notices: Formal notice generation
+
+Methodology reimplemented here rather than imported. The originating
+modules still run standalone under legacy/ and are the precedent record,
+not dead weight -- see legacy/README.md:
+    - Narrative Monitor (legacy/Unified_narrative.py): 64D text encoding
+    - Field Monitor (legacy/unified_field_monitor.py): geometric field encoding
+    - Ecological Monitor (legacy/ecological-calculus.py): health status framework
+    - Three-Axis Protocol (legacy/three-axis.py): confusion investigation
+
+Not wired in at all. These are bridges the engine is built to accept but
+does not yet call; StressInput is the handoff point:
+    - sovereign_impact_sensor: System stress calibration
+    - flux_sensor: Phase transition detection
+    - weather_node_network: Ensemble forecasting pipeline
 """
 
 import sys
@@ -434,20 +444,26 @@ def _assess_health_from_signals(
     m_s_score = MSCalculator.calculate(metrics)
     interpretation = MSCalculator.interpret(m_s_score)
 
-    # Derive health status
+    # Derive health status.
+    #
+    # These gates track MSCalculator.interpret(). They previously sat at
+    # 5 / 3 / 1 against an M(S) whose ceiling is 1.0, which made THRIVING,
+    # HEALTHY and STRESSED unreachable: every input, however healthy, landed
+    # in WARNING or CRITICAL. Rescaled to the derived range. See
+    # docs/EXPERIMENT-LOG.md entry E2.
     warnings = []
-    if m_s_score > 5:
+    if m_s_score > 0.5:
         health = "THRIVING"
-    elif m_s_score > 3:
+    elif m_s_score > 0.3:
         health = "HEALTHY"
-    elif m_s_score > 1:
+    elif m_s_score > 0.1:
         health = "STRESSED"
         if friction_count > 5:
             warnings.append(
                 f"High institutional friction ({friction_count} detections) "
                 "degrading system coherence."
             )
-    elif m_s_score > 0:
+    elif m_s_score > 0.0:
         health = "WARNING"
         warnings.append("System coherence approaching critical threshold.")
         if max_severity_value >= 4:

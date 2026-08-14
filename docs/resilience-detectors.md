@@ -57,17 +57,17 @@ stress_input = matrix.to_stress_input()
 
 ## Template Categories
 
-The scanner ships with 22 templates across 7 friction categories:
+The scanner ships with 24 templates across 7 friction categories:
 
 | Category | What It Detects | Example Pattern |
 |----------|----------------|-----------------|
-| **Reclassification** | Retroactive event recoding | "revised the methodology", "reclassified as" |
-| **Liability Hedging** | Causal distancing language | "not directly attributable", "no evidence of" |
-| **Statistical Smoothing** | Signal suppression methods | "outliers were removed", "rolling average" |
-| **Downplay** | Impact minimization | "isolated incident", "minimal impact" |
-| **Data Opacity** | Access restriction | "data not yet available", "proprietary methodology" |
-| **Dependency Risk** | T_infra stress signals | "system outage", "single point of failure" |
-| **Communication Friction** | Reporting delays/conflicts | "delayed notification", "conflicting reports" |
+| **Reclassification** (4) | Retroactive event recoding | "revised the methodology", "reclassified as" |
+| **Liability Hedging** (4) | Causal distancing language | "not directly attributable", "no evidence of" |
+| **Statistical Smoothing** (4) | Signal suppression methods | "outliers were removed", "rolling average" |
+| **Downplay** (3) | Impact minimization | "isolated incident", "minimal impact" |
+| **Data Opacity** (3) | Access restriction | "data not yet available", "proprietary methodology" |
+| **Dependency Risk** (3) | T_infra stress signals | "system outage", "single point of failure" |
+| **Communication Friction** (3) | Reporting delays/conflicts | "delayed notification", "conflicting reports" |
 
 ---
 

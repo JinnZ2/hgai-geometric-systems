@@ -53,28 +53,45 @@ class MSCalculator:
         
         return m_s
     
+    # Reachable range of M(S) given the derived input domains.
+    #
+    # R_e, A, D, C each in [0, 1] and L in [0, inf) => the coherence product
+    # cannot exceed 1.0, so M(S) in (-inf, +1.0]. With L expressed as the
+    # dissipation ratio it was derived as (energy_dissipated / energy_available,
+    # normally <= 1), the practical band is [-1, +1].
+    #
+    # The originally published bands (>7 highly coherent, 5-7 strong, 3-5
+    # moderate, 1-3 weak) were unreachable: every one of them sits above the
+    # ceiling. The ordinal structure of those bands was kept and the scale
+    # corrected by the factor of 10 that separated the asserted "typical range
+    # [-10, +10]" from the derived range [-1, +1]. See docs/EXPERIMENT-LOG.md
+    # entry E1 for the falsification run, and legacy/README.md for the
+    # as-published tables that this supersedes.
+    M_S_CEILING = 1.0
+
     @staticmethod
     def interpret(m_s: float) -> str:
         """
         Interpret M(S) value
-        
+
         Args:
-            m_s: Calculated M(S) score
-            
+            m_s: Calculated M(S) score. Bounded above by M_S_CEILING = 1.0
+                 when the inputs respect their derived domains.
+
         Returns:
             Human-readable interpretation
         """
-        if m_s > 7:
+        if m_s > 0.7:
             return "Highly coherent and sustainable"
-        elif m_s > 5:
+        elif m_s > 0.5:
             return "Strong coherence, good viability"
-        elif m_s > 3:
+        elif m_s > 0.3:
             return "Moderate coherence, stable"
-        elif m_s > 1:
+        elif m_s > 0.1:
             return "Weak coherence, stressed"
         elif m_s > 0:
             return "Low coherence, at risk"
-        elif m_s > -3:
+        elif m_s > -0.3:
             return "Negative coherence, declining"
         else:
             return "Severe negative coherence, collapse imminent"

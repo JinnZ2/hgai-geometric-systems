@@ -96,7 +96,7 @@ for notice in report.notices:
 ```
 
 ### Branch 1: Institutional Friction Scanner
-Applies 22 regex templates across 7 categories to detect language patterns that signal institutional friction. Outputs alerts, a risk matrix, and a stress input bridge to the EntropySensor.
+Applies 24 regex templates across 7 categories to detect language patterns that signal institutional friction. Outputs alerts, a risk matrix, and a stress input bridge to the EntropySensor.
 
 ### Branch 2: Narrative Geometry Encoder
 Encodes text into a 64-dimensional vector across four octants:
@@ -116,7 +116,11 @@ Identifies cross-pattern signals worth investigating — the "unknown axis" from
 Maps all signals to the M(S) equation components:
 - **R_e (Resonance)**: Agency magnitude + positive valence
 - **A (Adaptability)**: Temporal change handling + agency-based flexibility
-- **D (Diversity)**: Valence range (penalizes one-sidedness)
+- **D (Diversity)**: Valence range (penalizes one-sidedness) — note that
+  M(S) defines D as *pathway multiplicity*, not sentiment mixture, so this
+  proxy is inverted with respect to the equation: uniformly positive text,
+  including a transparent good-faith source, scores as minimally diverse.
+  Recorded as E4b in [EXPERIMENT-LOG.md](EXPERIMENT-LOG.md)
 - **C (Curiosity)**: Presence signals (questions, balance, engagement)
 - **L (Loss)**: Friction count + severity + negative valence
 
@@ -124,32 +128,74 @@ Maps all signals to the M(S) equation components:
 
 ## M(S) Score Interpretation
 
+M(S) is bounded above at +1.0 (all four coherence factors are in [0, 1], so
+their product cannot exceed 1). The health gates track that range:
+
 | Score | Health | Meaning |
 |-------|--------|---------|
-| > 5 | THRIVING | High coherence, actively healthy |
-| 3 - 5 | HEALTHY | Good coherence, stable |
-| 1 - 3 | STRESSED | Some friction or imbalance |
-| 0 - 1 | WARNING | Approaching critical threshold |
+| > 0.5 | THRIVING | High coherence, actively healthy |
+| 0.3 - 0.5 | HEALTHY | Good coherence, stable |
+| 0.1 - 0.3 | STRESSED | Some friction or imbalance |
+| 0 - 0.1 | WARNING | Approaching critical threshold |
 | < 0 | CRITICAL | Negative coherence, declining or collapsing |
+
+> These gates previously sat at 5 / 3 / 1 against a score that cannot exceed
+> 1.0, which made THRIVING, HEALTHY and STRESSED unreachable — the engine
+> had two possible outputs and advertised five. See
+> [EXPERIMENT-LOG.md](EXPERIMENT-LOG.md) entry E2.
+>
+> **Known limitation (E4).** Rescaling the gates removed an arithmetic
+> impossibility, but a second defect still constrains what the engine
+> reports in practice: the four octant magnitudes are on incompatible scales
+> (agency and valence peak near 1.42, temporal near 0.20, presence near
+> 0.10), so A and C are structurally starved in a multiplicative core. Two
+> of the four factors effectively decide the score. Unresolved.
 
 ---
 
 ## Connection to Other Modules
 
-HGAI is the front door. Everything connects through it:
+HGAI is the front door. This table previously listed ten modules as
+"connected" without distinguishing what the engine actually loads from what
+it aspires to. Three categories, checked against the imports:
+
+### Imported and executed
+
+These are `import` statements in `hgai.py`. Removing any one breaks the engine.
 
 | Module | Connection |
 |--------|-----------|
+| `framework/core/m_s_calculator.py` | Core M(S) equation used for scoring |
 | `resilience/detectors.py` | Scanner + templates for friction detection |
 | `resilience/notices.py` | Formal notice generation from alerts |
-| `sovereign_impact_sensor.py` | StressInput bridges into EntropySensor.calibrate_signals() |
-| `flux_sensor.py` | Flux data can augment the temporal geometry octant |
-| `weather_node_network.py` | Risk triggers feed into the ensemble pipeline |
-| `framework/core/m_s_calculator.py` | Core M(S) equation used for scoring |
-| `unified_field_monitor.py` | 64D encoding methodology |
-| `Unified_narrative.py` | Narrative encoding approach |
-| `ecological-calculus.py` | Health status framework |
-| `three-axis.py` | Curiosity signal / investigation lead methodology |
+
+### Methodology reimplemented, module not imported
+
+The *approach* was carried forward into `_encode_text_geometry` and
+`_extract_curiosity_signals`; the originating code is not loaded. Those
+modules still run standalone under `legacy/` and hold capability the
+reimplementation does not cover — see [../legacy/README.md](../legacy/README.md).
+
+| Module | What HGAI took from it |
+|--------|------------------------|
+| `legacy/unified_field_monitor.py` | 64D encoding methodology |
+| `legacy/Unified_narrative.py` | Narrative encoding approach |
+| `legacy/ecological-calculus.py` | Health status framework |
+| `legacy/three-axis.py` | Curiosity signal / investigation lead methodology |
+
+### Designed bridges, not yet wired
+
+`StressInput` is built and returned by the engine, and nothing currently
+consumes it. These are the intended consumers.
+
+| Module | Intended connection | State |
+|--------|--------------------|-------|
+| `sovereign_impact_sensor.py` | StressInput → `EntropySensor.calibrate_signals()` | not called; also requires pandas / scikit-learn / statsmodels, so it will not import under the documented minimal install |
+| `flux_sensor.py` | Flux data augments the temporal geometry octant | not called |
+| `weather_node_network.py` | Risk triggers feed the ensemble pipeline | not called |
+
+See [EXPERIMENT-LOG.md](EXPERIMENT-LOG.md) entry E9 for how this table was
+checked.
 
 ---
 

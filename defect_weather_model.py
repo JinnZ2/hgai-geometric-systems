@@ -48,6 +48,12 @@ from defect_field import (
 )
 
 
+# Minimum percentage improvement that counts as a real difference between the
+# two models. Anything inside +/-MATERIAL_THRESHOLD_PCT is a tie, in the
+# per-scenario verdict and in the run summary alike.
+MATERIAL_THRESHOLD_PCT = 5.0
+
+
 # ---------------------------------------------------------------------------
 # Data Containers
 # ---------------------------------------------------------------------------
@@ -641,14 +647,14 @@ class DefectWeatherModel:
         improvement = (smooth_error - defect_error) / (smooth_error + 1e-8) * 100
 
         # Verdict
-        if improvement > 5:
+        if improvement > MATERIAL_THRESHOLD_PCT:
             verdict = (
                 f"Defect-aware model wins by {improvement:.1f}%. "
                 "Preserving atmospheric discontinuities improved the forecast."
             )
-        elif improvement > -5:
+        elif improvement > -MATERIAL_THRESHOLD_PCT:
             verdict = (
-                f"Models roughly equal ({improvement:+.1f}%). "
+                f"Models roughly equal ({improvement:+.4f}%). "
                 "Defects neither helped nor hurt significantly."
             )
         else:
@@ -674,6 +680,76 @@ class DefectWeatherModel:
 # Demo
 # ---------------------------------------------------------------------------
 
+DEFAULT_SCENARIOS = (
+    "frontal_passage",
+    "cyclone_formation",
+    "blizzard_transition",
+)
+
+
+def run_scenario_comparison(
+    model: Optional["DefectWeatherModel"] = None,
+    scenarios: Optional[List[str]] = None,
+    verbose: bool = False,
+) -> Dict[str, ForecastComparison]:
+    """Compare the smooth and defect-aware models across scenarios.
+
+    Extracted from the demo so that verify_claims.py measures the same run
+    the demo prints, rather than a reimplementation of it.
+
+    Parameters
+    ----------
+    model : DefectWeatherModel, optional
+        Defaults to the published configuration (heavy smoothing for the
+        conventional model, minimal for the defect-aware one).
+    scenarios : list of str, optional
+        Scenario names. Defaults to DEFAULT_SCENARIOS.
+    verbose : bool
+        Print per-scenario detail as each runs.
+
+    Returns
+    -------
+    dict of str -> ForecastComparison
+    """
+    if model is None:
+        model = DefectWeatherModel(
+            N=40, forecast_steps=100,
+            smooth_alpha=0.5,   # conventional: heavy smoothing
+            defect_alpha=0.05,  # defect-aware: minimal smoothing
+        )
+    if scenarios is None:
+        scenarios = list(DEFAULT_SCENARIOS)
+
+    all_results: Dict[str, ForecastComparison] = {}
+
+    for scenario in scenarios:
+        if verbose:
+            print(f"\n--- Scenario: {scenario} ---")
+        pressure, temp, truth = model.generate_weather_scenario(scenario)
+
+        defects = model.detector.detect(pressure, temp)
+        if verbose:
+            print(f"  Detected features:")
+            for d in defects:
+                print(f"    {d.feature_type} at ({d.x:.2f}, {d.y:.2f}), "
+                      f"charge={d.charge}, intensity={d.intensity:.2f}")
+
+        result = model.forecast(pressure, temp, truth)
+        all_results[scenario] = result
+
+        if verbose:
+            print(f"\n  Smooth model error:      {result.smooth_error:.2f}")
+            print(f"  Defect-aware error:      {result.defect_error:.2f}")
+            print(f"  Improvement:             {result.improvement:+.4f}%")
+            print(f"  Defects detected:        {result.defects_detected}")
+            print(f"  Defects survived:        {result.defects_survived}")
+            print(f"  Phase domains (sm/def):  {result.smooth_domains} / {result.defect_domains}")
+            print(f"  Energy localization:     {result.energy_localization:.2f}")
+            print(f"  VERDICT: {result.verdict}")
+
+    return all_results
+
+
 def demo():
     """Run the defect weather model across multiple scenarios."""
     print("=" * 60)
@@ -681,67 +757,57 @@ def demo():
     print("  Topological Defects as Forecast Features")
     print("=" * 60)
 
-    model = DefectWeatherModel(
-        N=40, forecast_steps=100,
-        smooth_alpha=0.5,   # conventional: heavy smoothing
-        defect_alpha=0.05,  # defect-aware: minimal smoothing
-    )
-
-    scenarios = [
-        "frontal_passage",
-        "cyclone_formation",
-        "blizzard_transition",
-    ]
-
-    all_results = {}
-
-    for scenario in scenarios:
-        print(f"\n--- Scenario: {scenario} ---")
-        pressure, temp, truth = model.generate_weather_scenario(scenario)
-
-        # Detect features
-        defects = model.detector.detect(pressure, temp)
-        print(f"  Detected features:")
-        for d in defects:
-            print(f"    {d.feature_type} at ({d.x:.2f}, {d.y:.2f}), "
-                  f"charge={d.charge}, intensity={d.intensity:.2f}")
-
-        # Run forecast comparison
-        result = model.forecast(pressure, temp, truth)
-        all_results[scenario] = result
-
-        print(f"\n  Smooth model error:      {result.smooth_error:.2f}")
-        print(f"  Defect-aware error:      {result.defect_error:.2f}")
-        print(f"  Improvement:             {result.improvement:+.1f}%")
-        print(f"  Defects detected:        {result.defects_detected}")
-        print(f"  Defects survived:        {result.defects_survived}")
-        print(f"  Phase domains (sm/def):  {result.smooth_domains} / {result.defect_domains}")
-        print(f"  Energy localization:     {result.energy_localization:.2f}")
-        print(f"  VERDICT: {result.verdict}")
+    all_results = run_scenario_comparison(verbose=True)
 
     # --- Summary ---
     print("\n" + "=" * 60)
     print("  SUMMARY")
     print("=" * 60)
-    print(f"  {'scenario':>22s}  {'smooth':>8s}  {'defect':>8s}  {'improve':>8s}  {'verdict':>7s}")
-    print("  " + "-" * 58)
+    # A "win" must clear the same +/-5% band the per-scenario verdict uses.
+    # Counting any improvement > 0 as a win previously let a +0.0008% delta
+    # be reported as "3/3 scenarios, consistently improves forecasts" while
+    # each scenario's own verdict read "models roughly equal". The summary
+    # and the verdicts now apply one threshold. See docs/EXPERIMENT-LOG.md
+    # entry E3.
+    print(f"  {'scenario':>22s}  {'smooth':>10s}  {'defect':>10s}  {'improve':>9s}  {'verdict':>7s}")
+    print("  " + "-" * 64)
     for name, res in all_results.items():
-        winner = "DEFECT" if res.improvement > 0 else "SMOOTH"
+        if res.improvement > MATERIAL_THRESHOLD_PCT:
+            winner = "DEFECT"
+        elif res.improvement < -MATERIAL_THRESHOLD_PCT:
+            winner = "SMOOTH"
+        else:
+            winner = "TIE"
         print(
-            f"  {name:>22s}  {res.smooth_error:8.2f}  "
-            f"{res.defect_error:8.2f}  {res.improvement:+7.1f}%  "
+            f"  {name:>22s}  {res.smooth_error:10.2f}  "
+            f"{res.defect_error:10.2f}  {res.improvement:+8.4f}%  "
             f"{winner:>7s}"
         )
 
-    wins = sum(1 for r in all_results.values() if r.improvement > 0)
+    wins = sum(1 for r in all_results.values() if r.improvement > MATERIAL_THRESHOLD_PCT)
+    losses = sum(1 for r in all_results.values() if r.improvement < -MATERIAL_THRESHOLD_PCT)
     total = len(all_results)
-    print(f"\n  Defect-aware wins: {wins}/{total} scenarios")
+    ties = total - wins - losses
+    print(
+        f"\n  Material wins (>{MATERIAL_THRESHOLD_PCT:.0f}%): "
+        f"defect-aware {wins}/{total}, smooth {losses}/{total}, tie {ties}/{total}"
+    )
 
     if wins > total / 2:
         print("\n  CONCLUSION: Preserving atmospheric discontinuities")
         print("  consistently improves forecasts. Conventional smoothing")
         print("  destroys the information the atmosphere is trying to")
         print("  communicate through its defect structure.")
+    elif ties == total:
+        print("\n  CONCLUSION: NOT SUPPORTED on these scenarios.")
+        print("  Defect-aware forecasts are directionally better in every")
+        print("  scenario, but by a margin far below what this synthetic")
+        print("  setup can resolve. The sign is consistent; the magnitude")
+        print("  is not evidence. The claim that defect preservation")
+        print("  improves forecasts is UNTESTED here, not confirmed.")
+        print("  Real observational data is required to decide it.")
+    else:
+        print("\n  CONCLUSION: Mixed. No consistent winner across scenarios.")
     print()
 
     # --- The argument ---

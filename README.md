@@ -404,7 +404,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. Areas of interest:
 
 ## License
 
-MIT License — see [LICENSE](LICENSE)
+CC0 1.0 Universal — see [LICENSE](LICENSE)
 
 ## Author
 

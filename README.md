@@ -1,3 +1,6 @@
+> Read first: [READING_PROTOCOL.md](READING_PROTOCOL.md) (how to read this repo).
+> Map, not prescription. Errors are data. Check it. Built for the need, revisable.
+
 # HGAI Geometric Systems
 
 A mathematical framework for analyzing system coherence, resilience, and viability — with tools anyone can use right now.
